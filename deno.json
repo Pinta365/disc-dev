@@ -1,0 +1,13 @@
+{
+    "name": "@cross/discordbot",
+    "version": "0.0.1",
+    "exports": "./mod.ts",
+
+    "tasks": {
+        "publish-dry": "deno publish --dry-run"
+    },
+    "fmt": {
+        "lineWidth": 120,
+        "indentWidth": 4
+    }
+}
