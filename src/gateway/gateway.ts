@@ -6,7 +6,7 @@ import type { GatewayIntents, GatewayPayload, Identify } from "../structures/gat
 import { ActivityType } from "../structures/activities.ts";
 
 export class Gateway {
-    private botIdentificationName = "DiscordDeno";
+    private botIdentificationName = "@cross/Discordbot";
     private socket: WebSocket;
     private heartbeatInterval: number | null = null;
     private token: string;
@@ -21,8 +21,7 @@ export class Gateway {
     private resumeGatewayUrl: string | null = null;
     private sessionId: string | null = null;
 
-    constructor(token: string, intents: GatewayIntents[]) {
-        const gatewayURL = `wss://gateway.discord.gg/?v=10&encoding=json`;
+    constructor(token: string, intents: GatewayIntents[], gatewayURL: string) {
         this.socket = new WebSocket(gatewayURL);
 
         this.token = token;
@@ -67,6 +66,7 @@ export class Gateway {
                 break;
             case OpCodes.HEARTBEAT_ACK:
                 // Might wanna do something
+                console.log("Heartbeat ACK")
                 break;
             case OpCodes.DISPATCH:
                 this.handleGatewayEvents(payload);
@@ -90,7 +90,7 @@ export class Gateway {
     private startHeartbeat(intervalMs: number) {
         const jitter = Math.random(); 
         const jitterMs = jitter * intervalMs/2; 
-
+        console.log(`Heartbeat started with intervall ${intervalMs}, initial heartbeat ${jitterMs}.`)
         setTimeout(() => {
             this.heartbeatInterval = setInterval(() => {
                 this.sendHeartbeat();
