@@ -7,6 +7,17 @@ export interface GatewayPayload {
     t?: string | null; // Event name
 }
 
+export interface GatewayBotData {
+    url: string;
+    shards: number;
+    session_start_limit: {
+        total: number;
+        remaining: number;
+        reset_after: number;
+        max_concurrency: number;
+    };
+}
+
 export enum DiscordEvents {
     Ready = "READY",
     MessageCreate = "MESSAGE_CREATE",
@@ -128,6 +139,8 @@ export enum OpCodes {
     HELLO = 10,
     // 	Receive - Sent in response to receiving a heartbeat to acknowledge that it has been received.
     HEARTBEAT_ACK = 11,
+    //Send - Request information about soundboard sounds in a set of guilds.
+    REQUEST_SOUNDBOARD_SOUNDS = 31,
 }
 
 export interface CloseCodeInfo {

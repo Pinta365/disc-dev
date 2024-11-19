@@ -1,7 +1,6 @@
 // gateway.ts
-
 import { closeCodes, OpCodes } from "./structures/gateway.ts";
-import type { DiscordEvents, GatewayIntents, GatewayPayload, Identify } from "./structures/gateway.ts";
+import type { DiscordEvents, GatewayBotData, GatewayIntents, GatewayPayload, Identify } from "./structures/gateway.ts";
 import { ActivityType } from "./structures/activities.ts";
 
 function debug_getTime(): string {
@@ -16,7 +15,7 @@ function debug_getTime(): string {
 
 export class Gateway {
     private botIdentificationName = "@pinta365/discordbot"; //Should be configurable
-    private socket: WebSocket;
+    private socket: WebSocket | null = null;
     private heartbeatInterval: number | undefined;
     private token: string;
     private intents: GatewayIntents[];
@@ -24,7 +23,7 @@ export class Gateway {
     private resumeGatewayUrl: string | undefined = undefined;
     private sessionId: string | undefined = undefined;
     private reconnectCounter = 1;
-    private gatewayURL: string;
+    private gatewayURL: string | undefined;
     private gatewayVersion: number;
     private gatewayEncoding: string;
     private rateLimitBucket: Set<number> = new Set();
@@ -32,24 +31,37 @@ export class Gateway {
     private rateLimitRemaining = 120;
     private reconnectAttempts = 0;
     private maxReconnectAttempts = 10;
+    private sessionStartLimit: GatewayBotData["session_start_limit"] | null = null;
 
-    constructor(
-        token: string,
-        intents: GatewayIntents[],
-        gatewayURL: string,
-        gatewayVersion: number,
-        gatewayEncoding: string,
-    ) {
+    constructor(token: string, intents: GatewayIntents[]) {
         this.token = token;
         this.intents = intents;
-        this.gatewayURL = gatewayURL;
-        this.gatewayVersion = gatewayVersion;
-        this.gatewayEncoding = gatewayEncoding;
-        this.socket = new WebSocket(`${gatewayURL}?/v=${gatewayVersion}&encoding=${gatewayEncoding}`);
-        this.socket.onopen = () => this.onOpen();
-        this.socket.onmessage = (event) => this.onMessage(event);
-        this.socket.onclose = (event) => this.onClose(event);
-        this.socket.onerror = (event) => this.onError(event);
+        this.gatewayVersion = 10; // make configurable
+        this.gatewayEncoding = "json"; // make configurable
+
+        fetch(`https://discord.com/api/v${this.gatewayVersion}/gateway/bot`, {
+            headers: { Authorization: `Bot ${token}` },
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch gateway URL: ${response.status} - ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then((gatewayBotData: GatewayBotData) => {
+                this.sessionStartLimit = gatewayBotData.session_start_limit;
+                this.gatewayURL = gatewayBotData.url;
+                this.socket = new WebSocket(
+                    `${this.gatewayURL}?/v=${this.gatewayVersion}&encoding=${this.gatewayEncoding}`,
+                );
+                this.socket.onopen = () => this.onOpen();
+                this.socket.onmessage = (event) => this.onMessage(event);
+                this.socket.onclose = (event) => this.onClose(event);
+                this.socket.onerror = (event) => this.onError(event);
+            })
+            .catch((error) => {
+                console.error("Error fetching Gateway URL:", error);
+            });
     }
 
     private listeners: { [event: string]: ((...args: any[]) => void)[] } = {};
@@ -97,6 +109,13 @@ export class Gateway {
     }
 
     private identify() {
+        if (this.sessionStartLimit && this.sessionStartLimit.remaining === 0) {
+            const resetTime = this.sessionStartLimit.reset_after;
+            console.warn(`Session start limit reached. Retrying in ${resetTime / 1000} seconds...`);
+            setTimeout(() => this.identify(), resetTime); // Retry after the reset time
+            return;
+        }
+
         const identification: Identify = {
             token: this.token,
             intents: this.intents.reduce((acc, intent) => acc | intent, 0),
@@ -122,11 +141,15 @@ export class Gateway {
         };
 
         this.send(identifyPayload);
+
+        if (this.sessionStartLimit) {
+            this.sessionStartLimit.remaining--; // Decrement remaining attempts
+        }
     }
 
     private startHeartbeat(interval: number) {
         this.heartbeatInterval = setInterval(() => {
-            if (this.socket.readyState === WebSocket.OPEN) {
+            if (this.socket?.readyState === WebSocket.OPEN) {
                 const heartbeatPayload = {
                     op: OpCodes.HEARTBEAT,
                     d: this.lastSequenceNumber,
@@ -200,18 +223,30 @@ export class Gateway {
 
         clearInterval(this.heartbeatInterval);
 
-        this.socket.onclose = () => {
-            console.log(debug_getTime(), "Closed old connection for resume.", "\n");
-            this.socket = new WebSocket(this.resumeGatewayUrl!);
-            this.socket.onopen = () => this.send(resumePayload);
-            this.socket.onmessage = (event) => this.onMessage(event);
-            this.socket.onerror = (event) => this.onError(event);
-            this.socket.onclose = (event) => this.onClose(event);
-        };
-        this.close(4900, "Resume initialized.");
+        if (this.socket) {
+            this.socket.onclose = () => {
+                console.log(debug_getTime(), "Closed old connection for resume.", "\n");
+                this.socket = new WebSocket(this.resumeGatewayUrl!);
+                this.socket.onopen = () => this.send(resumePayload);
+                this.socket.onmessage = (event) => this.onMessage(event);
+                this.socket.onerror = (event) => this.onError(event);
+                this.socket.onclose = (event) => this.onClose(event);
+            };
+            this.close(4900, "Resume initialized.");
+        } else {
+            // Handle the case where this.socket is not yet initialized
+            console.warn("Cannot resume: WebSocket is not initialized.");
+        }
     }
 
     private reconnect() {
+        if (this.sessionStartLimit && this.sessionStartLimit.remaining === 0) {
+            const resetTime = this.sessionStartLimit.reset_after;
+            console.warn(`Session start limit reached. Retrying in ${resetTime / 1000} seconds...`);
+            setTimeout(() => this.reconnect(), resetTime); // Retry after the reset time
+            return;
+        }
+
         this.resetState();
 
         const backoffTime = Math.min(2 ** this.reconnectAttempts + (Math.random() * 1000), 30000);
@@ -229,6 +264,10 @@ export class Gateway {
         this.reconnectAttempts++;
         if (this.reconnectAttempts > this.maxReconnectAttempts) {
             console.error("Max reconnect attempts reached. Giving up.");
+        }
+
+        if (this.sessionStartLimit) {
+            this.sessionStartLimit.remaining--; // Decrement remaining attempts
         }
     }
 
@@ -269,8 +308,12 @@ export class Gateway {
         if (payload.op !== 1) {
             console.warn(debug_getTime(), JSON.stringify(payload), "\n");
         }
-        this.socket.send(JSON.stringify(payload));
-        this.updateRateLimitBucket();
+        if (this.socket) {
+            this.socket.send(JSON.stringify(payload));
+            this.updateRateLimitBucket();
+        } else {
+            console.warn("Cannot send payload: WebSocket is not initialized.");
+        }
     }
     private isRateLimited(): boolean {
         const now = Date.now();
