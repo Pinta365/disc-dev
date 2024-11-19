@@ -7,6 +7,64 @@ export interface GatewayPayload {
     t?: string | null; // Event name
 }
 
+export enum DiscordEvents {
+    Ready = "READY",
+    MessageCreate = "MESSAGE_CREATE",
+    MessageDelete = "MESSAGE_DELETE",
+    MessageUpdate = "MESSAGE_UPDATE",
+    MessageDeleteBulk = "MESSAGE_DELETE_BULK",
+    MessageReactionAdd = "MESSAGE_REACTION_ADD",
+    MessageReactionRemove = "MESSAGE_REACTION_REMOVE",
+    MessageReactionRemoveAll = "MESSAGE_REACTION_REMOVE_ALL",
+    MessageReactionRemoveEmoji = "MESSAGE_REACTION_REMOVE_EMOJI",
+    TypingStart = "TYPING_START",
+    GuildCreate = "GUILD_CREATE",
+    GuildUpdate = "GUILD_UPDATE",
+    GuildDelete = "GUILD_DELETE",
+    GuildRoleCreate = "GUILD_ROLE_CREATE",
+    GuildRoleUpdate = "GUILD_ROLE_UPDATE",
+    GuildRoleDelete = "GUILD_ROLE_DELETE",
+    ChannelCreate = "CHANNEL_CREATE",
+    ChannelUpdate = "CHANNEL_UPDATE",
+    ChannelDelete = "CHANNEL_DELETE",
+    ChannelPinsUpdate = "CHANNEL_PINS_UPDATE",
+    ThreadCreate = "THREAD_CREATE",
+    ThreadUpdate = "THREAD_UPDATE",
+    ThreadDelete = "THREAD_DELETE",
+    ThreadListSync = "THREAD_LIST_SYNC",
+    ThreadMemberUpdate = "THREAD_MEMBER_UPDATE",
+    ThreadMembersUpdate = "THREAD_MEMBERS_UPDATE",
+    StageInstanceCreate = "STAGE_INSTANCE_CREATE",
+    StageInstanceUpdate = "STAGE_INSTANCE_UPDATE",
+    StageInstanceDelete = "STAGE_INSTANCE_DELETE",
+    GuildMemberAdd = "GUILD_MEMBER_ADD",
+    GuildMemberUpdate = "GUILD_MEMBER_UPDATE",
+    GuildMemberRemove = "GUILD_MEMBER_REMOVE",
+    GuildBanAdd = "GUILD_BAN_ADD",
+    GuildBanRemove = "GUILD_BAN_REMOVE",
+    GuildAuditLogEntryCreate = "GUILD_AUDIT_LOG_ENTRY_CREATE",
+    GuildEmojisUpdate = "GUILD_EMOJIS_UPDATE",
+    GuildStickersUpdate = "GUILD_STICKERS_UPDATE",
+    GuildIntegrationsUpdate = "GUILD_INTEGRATIONS_UPDATE",
+    IntegrationCreate = "INTEGRATION_CREATE",
+    IntegrationUpdate = "INTEGRATION_UPDATE",
+    IntegrationDelete = "INTEGRATION_DELETE",
+    WebhooksUpdate = "WEBHOOKS_UPDATE",
+    InviteCreate = "INVITE_CREATE",
+    InviteDelete = "INVITE_DELETE",
+    VoiceStateUpdate = "VOICE_STATE_UPDATE",
+    PresenceUpdate = "PRESENCE_UPDATE",
+    GuildScheduledEventCreate = "GUILD_SCHEDULED_EVENT_CREATE",
+    GuildScheduledEventUpdate = "GUILD_SCHEDULED_EVENT_UPDATE",
+    GuildScheduledEventDelete = "GUILD_SCHEDULED_EVENT_DELETE",
+    GuildScheduledEventUserAdd = "GUILD_SCHEDULED_EVENT_USER_ADD",
+    GuildScheduledEventUserRemove = "GUILD_SCHEDULED_EVENT_USER_REMOVE",
+    AutoModerationRuleCreate = "AUTO_MODERATION_RULE_CREATE",
+    AutoModerationRuleUpdate = "AUTO_MODERATION_RULE_UPDATE",
+    AutoModerationRuleDelete = "AUTO_MODERATION_RULE_DELETE",
+    AutoModerationActionExecution = "AUTO_MODERATION_ACTION_EXECUTION",
+}
+
 export interface Identify {
     token: string;
     properties: IdentifyConnectionProperties;
@@ -46,18 +104,29 @@ export enum GatewayIntents {
     AUTO_MODERATION_EXECUTION = 1 << 21,
 }
 
+//https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
 export enum OpCodes {
-    //https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
+    // Receive - An event was dispatched.
     DISPATCH = 0,
+    // Send/Receive - Fired periodically by the client to keep the connection alive.
     HEARTBEAT = 1,
+    // 	Send - Starts a new session during the initial handshake.
     IDENTIFY = 2,
+    // Send - Update the client's presence.
     PRESENCE_UPDATE = 3,
+    // 	Send - Used to join/leave or move between voice channels.
     VOICE_STATE_UPDATE = 4,
+    // Send - Resume a previous session that was disconnected.
     RESUME = 6,
+    // 	Receive - You should attempt to reconnect and resume immediately.
     RECONNECT = 7,
+    // Send - Request information about offline guild members in a large guild.
     REQUEST_GUILD_MEMBERS = 8,
+    // 	Receive - The session has been invalidated. You should reconnect and identify/resume accordingly.
     INVALID_SESSION = 9,
+    // 	Receive - Sent immediately after connecting, contains the heartbeat_interval to use.
     HELLO = 10,
+    // 	Receive - Sent in response to receiving a heartbeat to acknowledge that it has been received.
     HEARTBEAT_ACK = 11,
 }
 
@@ -101,4 +170,7 @@ export const closeCodes: CloseCodeInfo[] = [
     { name: "Invalid API Version", code: 4012, reconnect: false },
     { name: "Invalid Intent(s)", code: 4013, reconnect: false },
     { name: "Disallowed Intent(s)", code: 4014, reconnect: false },
+
+    // Library specific codes
+    { name: "Reconnect Event", code: 4900, reconnect: true },
 ];
