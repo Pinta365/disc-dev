@@ -120,6 +120,14 @@ export interface ResolvedData {
     attachments?: Map<Snowflake, Attachment>;
 }
 
+export interface TypingStart {
+    user_id: Snowflake;
+    timestamp: number;
+    member: GuildMember;
+    channel_id: Snowflake;
+    guild_id: Snowflake;
+}
+
 /*
 WATCH TOGETHER
 {
