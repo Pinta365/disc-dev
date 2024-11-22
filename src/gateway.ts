@@ -1,4 +1,4 @@
-// gateway.ts
+// ./src/gateway.ts
 import { closeCodes, OpCodes } from "./structures/gateway.ts";
 import type { DiscordEvents, GatewayBotData, GatewayIntents, GatewayPayload, Identify } from "./structures/gateway.ts";
 import { ActivityType } from "./structures/activities.ts";
@@ -32,6 +32,12 @@ export class Gateway {
     private reconnectAttempts = 0;
     private maxReconnectAttempts = 10;
     private sessionStartLimit: GatewayBotData["session_start_limit"] | null = null;
+    private messageQueue: GatewayPayload[] = [];
+    private isReconnecting = false;
+    private queueableOpcodes: OpCodes[] = [
+        OpCodes.IDENTIFY,
+        // Queueable codes to whitelist
+    ];
 
     constructor(token: string, intents: GatewayIntents[]) {
         this.token = token;
@@ -64,13 +70,16 @@ export class Gateway {
             });
     }
 
+    // deno-lint-ignore no-explicit-any
     private listeners: { [event: string]: ((...args: any[]) => void)[] } = {};
 
+    // deno-lint-ignore no-explicit-any
     on(event: DiscordEvents, callback: (...args: any[]) => void) {
         this.listeners[event] = this.listeners[event] || [];
         this.listeners[event].push(callback);
     }
 
+    // deno-lint-ignore no-explicit-any
     private emit(event: DiscordEvents, ...args: any[]) {
         if (this.listeners[event]) {
             this.listeners[event].forEach((listener) => listener(...args));
@@ -78,7 +87,18 @@ export class Gateway {
     }
 
     private onOpen() {
+        this.isReconnecting = false;
         this.identify();
+        this.flushMessageQueue();
+    }
+
+    private flushMessageQueue() {
+        while (this.messageQueue.length > 0) {
+            const payload = this.messageQueue.shift();
+            if (payload) {
+                this.send(payload);
+            }
+        }
     }
 
     private onMessage(event: MessageEvent) {
@@ -112,7 +132,7 @@ export class Gateway {
         if (this.sessionStartLimit && this.sessionStartLimit.remaining === 0) {
             const resetTime = this.sessionStartLimit.reset_after;
             console.warn(`Session start limit reached. Retrying in ${resetTime / 1000} seconds...`);
-            setTimeout(() => this.identify(), resetTime); // Retry after the reset time
+            setTimeout(() => this.identify(), resetTime);
             return;
         }
 
@@ -143,7 +163,7 @@ export class Gateway {
         this.send(identifyPayload);
 
         if (this.sessionStartLimit) {
-            this.sessionStartLimit.remaining--; // Decrement remaining attempts
+            this.sessionStartLimit.remaining--;
         }
     }
 
@@ -234,16 +254,16 @@ export class Gateway {
             };
             this.close(4900, "Resume initialized.");
         } else {
-            // Handle the case where this.socket is not yet initialized
             console.warn("Cannot resume: WebSocket is not initialized.");
         }
     }
 
     private reconnect() {
+        this.isReconnecting = true;
         if (this.sessionStartLimit && this.sessionStartLimit.remaining === 0) {
             const resetTime = this.sessionStartLimit.reset_after;
             console.warn(`Session start limit reached. Retrying in ${resetTime / 1000} seconds...`);
-            setTimeout(() => this.reconnect(), resetTime); // Retry after the reset time
+            setTimeout(() => this.reconnect(), resetTime);
             return;
         }
 
@@ -267,7 +287,7 @@ export class Gateway {
         }
 
         if (this.sessionStartLimit) {
-            this.sessionStartLimit.remaining--; // Decrement remaining attempts
+            this.sessionStartLimit.remaining--;
         }
     }
 
@@ -308,11 +328,16 @@ export class Gateway {
         if (payload.op !== 1) {
             console.warn(debug_getTime(), JSON.stringify(payload), "\n");
         }
-        if (this.socket) {
+        if (this.isReconnecting || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
+            if (this.queueableOpcodes.includes(payload.op)) {
+                this.messageQueue.push(payload);
+                console.debug("Gateway connection is not open. Message queued.");
+            } else {
+                console.debug("Opcode not whitelisted for queuing:", payload.op);
+            }
+        } else {
             this.socket.send(JSON.stringify(payload));
             this.updateRateLimitBucket();
-        } else {
-            console.warn("Cannot send payload: WebSocket is not initialized.");
         }
     }
     private isRateLimited(): boolean {
