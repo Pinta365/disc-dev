@@ -14,6 +14,7 @@ export interface Embed {
     author?: EmbedAuthor;
     fields?: EmbedField[];
 }
+
 export enum EmbedType {
     RICH = "rich",
     IMAGE = "image",

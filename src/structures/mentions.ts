@@ -7,3 +7,12 @@ export interface ChannelMention {
     type: number;
     name: string;
 }
+
+export type AllowedMentionType = "roles" | "users" | "everyone";
+
+export interface AllowedMentions {
+    parse: AllowedMentionType[];
+    roles?: string[];
+    users?: string[];
+    replied_user?: boolean;
+}

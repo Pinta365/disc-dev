@@ -10,6 +10,14 @@ const rest = new DiscordRestClient(getEnv("TOKEN2")!);
 const command = {
     name: "greet1",
     description: "sdsdfadfsd",
+    options: [
+        {
+            name: "test",
+            description: "test name",
+            required: true,
+            type: 3,
+        },
+    ],
 };
 
 try {

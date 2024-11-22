@@ -1,13 +1,17 @@
 // rest_client.ts
 import type { ApplicationCommand, ApplicationCommandChange } from "./structures/application_command.ts";
+import type { InteractionCallbackData, InteractionResponse } from "./structures/interactions.ts";
+import { InteractionCallbackType } from "./structures/interactions.ts";
+import type { Message } from "./structures/messages.ts";
+import { MessageFlags } from "./structures/messages.ts";
 
 class DiscordAPIError extends Error {
     statusCode: number;
     statusMessage: string;
     code?: number;
-    errors?: any;
+    errors?: unknown;
 
-    constructor(statusCode: number, statusMessage: string, code?: number, errors?: any) {
+    constructor(statusCode: number, statusMessage: string, code?: number, errors?: unknown) {
         super(`REST request failed: ${statusCode} - ${statusMessage}`);
         this.statusCode = statusCode;
         this.statusMessage = statusMessage;
@@ -30,7 +34,7 @@ export class DiscordRestClient {
         return `https://discord.com/api/v${this.apiVersion}${endpoint}`;
     }
 
-    private async request<T>(method: string, endpoint: string, body?: any): Promise<T> {
+    private async request<T>(method: string, endpoint: string, body?: unknown): Promise<T> {
         const url = this.buildApiURL(endpoint);
         const response = await fetch(url, {
             method,
@@ -146,6 +150,61 @@ export class DiscordRestClient {
             "PUT",
             `/applications/${applicationId}/guilds/${guildId}/commands`,
             commandsData,
+        );
+    }
+
+    async createInteractionResponse(
+        interactionId: string,
+        interactionToken: string,
+        type?: InteractionCallbackType,
+        data?: InteractionCallbackData | string,
+        ephemeral?: boolean,
+    ) {
+        try {
+            const responseObj: InteractionResponse = typeof data === "string"
+                ? {
+                    type: type ?? InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+                    data: { content: data },
+                }
+                : {
+                    type: type ?? InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+                    data: data,
+                };
+
+            if (ephemeral) {
+                responseObj.data = responseObj.data || {};
+                responseObj.data.flags = (responseObj.data.flags || 0) | MessageFlags.EPHEMERAL;
+            }
+
+            await this.request(
+                "POST",
+                `/interactions/${interactionId}/${interactionToken}/callback`,
+                responseObj,
+            );
+        } catch (error) {
+            console.error("Error creating interaction response:", error);
+        }
+    }
+
+    async getOriginalInteractionResponse(
+        applicationId: string,
+        interactionToken: string,
+    ): Promise<Message> {
+        return await this.request(
+            "GET",
+            `/webhooks/${applicationId}/${interactionToken}/messages/@original`,
+        );
+    }
+
+    async editOriginalInteractionResponse(
+        applicationId: string,
+        interactionToken: string,
+        message: Partial<Message>,
+    ): Promise<Message> {
+        return await this.request(
+            "PATCH",
+            `/webhooks/${applicationId}/${interactionToken}/messages/@original`,
+            message,
         );
     }
 }

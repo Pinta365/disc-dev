@@ -1,6 +1,11 @@
-//./src/client.ts
+// ./src/client.ts
 import { Gateway } from "./gateway.ts";
-import type { DiscordEvents, GatewayIntents } from "./structures/gateway.ts";
+import { DiscordEvents, type GatewayIntents } from "./structures/gateway.ts";
+import type { Message } from "./structures/messages.ts";
+import { InteractionCallbackType, InteractionType } from "./structures/interactions.ts";
+import type { EmbelishedInteraction, InteractionCallbackData } from "./structures/interactions.ts";
+import { ApplicationCommandType } from "./structures/application_command.ts";
+import { DiscordRestClient } from "./rest_client.ts";
 
 interface ClientOptions {
     token: string;
@@ -8,64 +13,100 @@ interface ClientOptions {
 }
 
 export class DiscordClient {
-    gateway: Gateway | null = null;
+    private gateway: Gateway | null = null;
+    private rest: DiscordRestClient;
 
     constructor(options: ClientOptions) {
         const intents = options.intents || [];
+        this.rest = new DiscordRestClient(options.token, 10);
 
-        this.gateway = new Gateway(
-            options.token,
-            intents,
-            "wss://gateway.discord.gg",
-            10,
-            "json",
-        );
+        this.gateway = new Gateway(options.token, intents);
 
-        /*
-            this.fetchGatewayUrl(options.token).then((gatewayData) => {
+        if (this.gateway) {
+            this.gateway.on(DiscordEvents.InteractionCreate, (interaction) => {
+                let interactionTarget = "";
+                if (interaction.type === InteractionType.APPLICATION_COMMAND) {
+                    interactionTarget = interaction.data?.name || "";
+                } else if (interaction.type === InteractionType.MESSAGE_COMPONENT) {
+                    interactionTarget = interaction.data?.custom_id || "";
+                } else if (interaction.type === InteractionType.MODAL_SUBMIT) {
+                    interactionTarget = interaction.data?.custom_id || "";
+                }
 
-                //gatewayData {
-                //    url: "wss://gateway.discord.gg",
-                //    session_start_limit: {
-                //        max_concurrency: 1,
-                //        remaining: 984,
-                //        reset_after: 3440842,
-                //        total: 1000
-                //    },
-                //    shards: 1
-                //    }
+                const embelishedInteraction: EmbelishedInteraction = {
+                    rawInteraction: interaction,
+                    isChatInputCommand: (interaction.type === InteractionType.APPLICATION_COMMAND &&
+                        interaction.data.type === ApplicationCommandType.CHAT_INPUT),
+                    isMessageComponent: interaction.type === InteractionType.MESSAGE_COMPONENT,
+                    isApplicationCommandAutocomplete:
+                        interaction.type === InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE,
+                    isModalSubmit: interaction.type === InteractionType.MODAL_SUBMIT,
+                    isUserCommand: (interaction.type === InteractionType.APPLICATION_COMMAND &&
+                        interaction.data.type === ApplicationCommandType.USER),
+                    isMessageCommand: (interaction.type === InteractionType.APPLICATION_COMMAND &&
+                        interaction.data.type === ApplicationCommandType.MESSAGE),
 
-                //We can also enable the ability to choose other encoding and/or compression
-                //https://discord.com/developers/docs/topics/gateway#connecting-gateway-url-query-string-params
-                const gatewayUrl = gatewayData.url;
-                const gatewayVersion = 10;
-                const gatewayEncoding = "json";
-                this.gateway = new Gateway(options.token, intents, gatewayUrl, gatewayVersion, gatewayEncoding);
-            }).catch((error) => {
-                console.error("Error fetching Gateway URL:", error);
-                // Handle the error appropriately
+                    interactionTarget: interactionTarget,
+
+                    reply: async (response: InteractionCallbackData, ephemeral?: boolean) => {
+                        await this.rest.createInteractionResponse(
+                            interaction.id,
+                            interaction.token,
+                            undefined,
+                            response,
+                            ephemeral,
+                        );
+                    },
+
+                    deferReply: async () => {
+                        await this.rest.createInteractionResponse(
+                            interaction.id,
+                            interaction.token,
+                            InteractionCallbackType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+                        );
+                    },
+
+                    update: async (message: Partial<Message>) => {
+                        await this.rest.createInteractionResponse(
+                            interaction.id,
+                            interaction.token,
+                            InteractionCallbackType.UPDATE_MESSAGE,
+                            message,
+                        );
+                    },
+
+                    deferUpdate: async () => {
+                        await this.rest.createInteractionResponse(
+                            interaction.id,
+                            interaction.token,
+                            InteractionCallbackType.DEFERRED_UPDATE_MESSAGE,
+                        );
+                    },
+                    /*
+                    //Not implemented
+                    editReply: async () => {
+                    },
+
+                    followUp: async () => {
+                    },
+                    */
+                };
+
+                this.emit(DiscordEvents.InteractionCreate, embelishedInteraction);
             });
-        */
-    }
-
-    async fetchGatewayUrl(token: string) {
-        const response = await fetch("https://discord.com/api/v10/gateway/bot", {
-            headers: { "Authorization": `Bot ${token}` },
-        });
-
-        if (!response.ok) {
-            throw new Error(
-                `Failed to fetch Gateway URL - Status: ${response.status}`,
-            );
         }
-
-        return await response.json();
     }
 
     // deno-lint-ignore no-explicit-any
-    on(event: DiscordEvents, callback: (...args: any[]) => void): void {
-        if (this.gateway) {
-            this.gateway.on(event, callback);
+    private listeners: { [event in DiscordEvents]?: (...args: any[]) => void } = {};
+    // deno-lint-ignore no-explicit-any
+    on<T extends DiscordEvents>(event: T, callback: (...args: any[]) => void): void {
+        this.listeners[event] = callback;
+    }
+    // deno-lint-ignore no-explicit-any
+    private emit<T extends DiscordEvents>(event: T, ...args: any[]) {
+        if (this.listeners[event]) {
+            this.listeners[event]?.(...args);
         }
     }
 

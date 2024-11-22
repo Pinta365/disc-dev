@@ -1,6 +1,11 @@
 // structures/application_command.ts
 
-export type ApplicationCommandType = 1 | 2 | 3 | 4; // CHAT_INPUT, USER, MESSAGE, PRIMARY_ENTRY_POINT
+export enum ApplicationCommandType {
+    CHAT_INPUT = 1,
+    USER = 2,
+    MESSAGE = 3,
+    PRIMARY_ENTRY_POINT = 4,
+}
 
 export interface ApplicationCommandChange {
     id?: string;
@@ -47,18 +52,19 @@ export interface ApplicationCommandOptionChoice {
     value: string | number;
 }
 
-export type ApplicationCommandOptionType =
-    | 1 // SUB_COMMAND
-    | 2 // SUB_COMMAND_GROUP
-    | 3 // STRING
-    | 4 // INTEGER
-    | 5 // BOOLEAN
-    | 6 // USER
-    | 7 // CHANNEL
-    | 8 // ROLE
-    | 9 // MENTIONABLE
-    | 10 // NUMBER
-    | 11; // ATTACHMENT
+export enum ApplicationCommandOptionType {
+    SUB_COMMAND = 1,
+    SUB_COMMAND_GROUP = 2,
+    STRING = 3,
+    INTEGER = 4,
+    BOOLEAN = 5,
+    USER = 6,
+    CHANNEL = 7,
+    ROLE = 8,
+    MENTIONABLE = 9,
+    NUMBER = 10,
+    ATTACHMENT = 11,
+}
 
 export interface ApplicationCommandOption {
     type: ApplicationCommandOptionType;

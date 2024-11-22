@@ -1,32 +1,14 @@
+// bot.ts - testing
 import "@cross/env/load";
 import { getEnv } from "@cross/env";
 
-import { DiscordClient } from "../mod.ts";
-import { DiscordEvents, GatewayIntents } from "../src/structures/gateway.ts";
-import type { Message, TypingStart } from "../src/structures/messages.ts";
+import { DiscordClient, DiscordEvents, GatewayIntents } from "../mod.ts";
+import type { EmbelishedInteraction } from "../mod.ts";
 
 const token = getEnv("TOKEN2")!;
 
 const intents = [
     GatewayIntents.GUILDS,
-    GatewayIntents.GUILD_MEMBERS,
-    GatewayIntents.GUILD_MODERATION,
-    GatewayIntents.GUILD_EMOJIS_AND_STICKERS,
-    GatewayIntents.GUILD_INTEGRATIONS,
-    GatewayIntents.GUILD_WEBHOOKS,
-    GatewayIntents.GUILD_INVITES,
-    GatewayIntents.GUILD_VOICE_STATES,
-    GatewayIntents.GUILD_PRESENCES,
-    GatewayIntents.GUILD_MESSAGES,
-    GatewayIntents.GUILD_MESSAGE_REACTIONS,
-    GatewayIntents.GUILD_MESSAGE_TYPING,
-    GatewayIntents.DIRECT_MESSAGES,
-    GatewayIntents.DIRECT_MESSAGE_REACTIONS,
-    GatewayIntents.DIRECT_MESSAGE_TYPING,
-    GatewayIntents.MESSAGE_CONTENT,
-    GatewayIntents.GUILD_SCHEDULED_EVENTS,
-    GatewayIntents.AUTO_MODERATION_CONFIGURATION,
-    GatewayIntents.AUTO_MODERATION_EXECUTION,
 ];
 
 const client = new DiscordClient({ token, intents });
@@ -35,18 +17,25 @@ client.on(DiscordEvents.Ready, () => {
     console.log("Bot is ready!");
 });
 
-client.on(DiscordEvents.MessageCreate, (message: Message) => {
-    console.log("Message create:", message.id);
-});
+client.on(DiscordEvents.InteractionCreate, (interaction: EmbelishedInteraction) => {
+    if (!interaction.isChatInputCommand) return;
 
-client.on(DiscordEvents.MessageUpdate, (message: Message) => {
-    console.log("Message update:", message.id);
-});
+    console.log(interaction);
+    if (interaction.interactionTarget === "greet1") {
+        //interaction.reply("Pong!");
 
-client.on(DiscordEvents.MessageDelete, (message: Message) => {
-    console.log("Message delete:", message.id);
-});
+        interaction.reply({
+            content: "Pong!",
+        }, true);
 
-client.on(DiscordEvents.TypingStart, (typingStart: TypingStart) => {
-    console.log("TypingStart:", typingStart.member.user?.username);
+        /*
+        interaction.deferReply();
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        interaction.editReply({
+            type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
+            data: {
+                content: "Pong!",
+            },
+        });*/
+    }
 });

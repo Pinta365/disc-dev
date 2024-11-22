@@ -60,6 +60,7 @@ export enum DiscordEvents {
     IntegrationCreate = "INTEGRATION_CREATE",
     IntegrationUpdate = "INTEGRATION_UPDATE",
     IntegrationDelete = "INTEGRATION_DELETE",
+    InteractionCreate = "INTERACTION_CREATE",
     WebhooksUpdate = "WEBHOOKS_UPDATE",
     InviteCreate = "INVITE_CREATE",
     InviteDelete = "INVITE_DELETE",
