@@ -13,8 +13,9 @@ const intents = [
 
 const client = new DiscordClient({ token, intents });
 
-client.on(DiscordEvents.Ready, () => {
-    console.log("Bot is ready!");
+client.on(DiscordEvents.Ready, (payload) => {
+    console.log("test");
+    console.log(`Logged in as ${payload.user.username}!`);
 });
 
 client.on(DiscordEvents.InteractionCreate, (interaction: EmbelishedInteraction) => {
@@ -26,16 +27,9 @@ client.on(DiscordEvents.InteractionCreate, (interaction: EmbelishedInteraction) 
 
         interaction.reply({
             content: "Pong!",
-        }, true);
+        });
 
-        /*
-        interaction.deferReply();
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        interaction.editReply({
-            type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
-            data: {
-                content: "Pong!",
-            },
-        });*/
+        //interaction.followUp({ content: "Pong edited!" });
+        interaction.followUp("Pong edited!", true);
     }
 });

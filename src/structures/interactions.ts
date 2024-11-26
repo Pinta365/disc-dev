@@ -66,15 +66,16 @@ export interface EmbelishedInteraction {
     isModalSubmit: boolean;
     isUserCommand: boolean;
     isMessageCommand: boolean;
-
     interactionTarget: string;
-
-    reply(response: InteractionCallbackData, ephemeral?: boolean): Promise<void>;
+    applicationId: string;
+    channelId: string;
+    guildId: string;
+    reply(response: InteractionCallbackData | string, ephemeral?: boolean): Promise<void>;
+    editReply(message: Partial<Message>): Promise<void>;
     deferReply(): Promise<void>;
+    followUp(response: InteractionCallbackData | string, ephemeral?: boolean): Promise<void>;
     update(message: Partial<Message>): Promise<void>;
     deferUpdate(): Promise<void>;
-    //editReply(): Promise<>;
-    //followUp(): Promise<>;
 }
 
 export interface Interaction {

@@ -1,9 +1,11 @@
 // rest_client.ts
 import type { ApplicationCommand, ApplicationCommandChange } from "./structures/application_command.ts";
+import type { Application } from "./structures/applications.ts";
 import type { InteractionCallbackData, InteractionResponse } from "./structures/interactions.ts";
 import { InteractionCallbackType } from "./structures/interactions.ts";
 import type { Message } from "./structures/messages.ts";
 import { MessageFlags } from "./structures/messages.ts";
+import type { Snowflake } from "./structures/snowflake.ts";
 
 class DiscordAPIError extends Error {
     statusCode: number;
@@ -23,6 +25,7 @@ export class DiscordRestClient {
     private token: string;
     private apiVersion: number;
     private userAgent: string;
+    private currentApplicationId: Snowflake | undefined = undefined;
 
     constructor(token: string, apiVersion = 10) {
         this.token = token;
@@ -62,6 +65,16 @@ export class DiscordRestClient {
             return await response.json() as T;
         } else {
             return await response.text() as unknown as T;
+        }
+    }
+
+    async getCurrentApplicationId(): Promise<Snowflake> {
+        if (!this.currentApplicationId) {
+            const app = await this.request<Application>("GET", `/applications/@me`);
+            this.currentApplicationId = app.id;
+            return this.currentApplicationId;
+        } else {
+            return this.currentApplicationId;
         }
     }
 
@@ -160,30 +173,26 @@ export class DiscordRestClient {
         data?: InteractionCallbackData | string,
         ephemeral?: boolean,
     ) {
-        try {
-            const responseObj: InteractionResponse = typeof data === "string"
-                ? {
-                    type: type ?? InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
-                    data: { content: data },
-                }
-                : {
-                    type: type ?? InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
-                    data: data,
-                };
-
-            if (ephemeral) {
-                responseObj.data = responseObj.data || {};
-                responseObj.data.flags = (responseObj.data.flags || 0) | MessageFlags.EPHEMERAL;
+        const responseObj: InteractionResponse = typeof data === "string"
+            ? {
+                type: type ?? InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+                data: { content: data },
             }
+            : {
+                type: type ?? InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+                data: data,
+            };
 
-            await this.request(
-                "POST",
-                `/interactions/${interactionId}/${interactionToken}/callback`,
-                responseObj,
-            );
-        } catch (error) {
-            console.error("Error creating interaction response:", error);
+        if (ephemeral) {
+            responseObj.data = responseObj.data || {};
+            responseObj.data.flags = (responseObj.data.flags || 0) | MessageFlags.EPHEMERAL;
         }
+
+        await this.request(
+            "POST",
+            `/interactions/${interactionId}/${interactionToken}/callback`,
+            responseObj,
+        );
     }
 
     async getOriginalInteractionResponse(
@@ -205,6 +214,26 @@ export class DiscordRestClient {
             "PATCH",
             `/webhooks/${applicationId}/${interactionToken}/messages/@original`,
             message,
+        );
+    }
+
+    async createFollowupMessage(
+        applicationId: string,
+        interactionToken: string,
+        message: Partial<Message> | string,
+        ephemeral?: boolean,
+    ): Promise<void> {
+        const msgObj: Partial<Message> = typeof message === "string" ? { content: message } : message;
+
+        if (ephemeral) {
+            message = message || {};
+            msgObj.flags = (msgObj.flags || 0) | MessageFlags.EPHEMERAL;
+        }
+
+        await this.request(
+            "POST",
+            `/webhooks/${applicationId}/${interactionToken}`,
+            msgObj,
         );
     }
 }

@@ -1,6 +1,7 @@
 // ./src/gateway.ts
 import { closeCodes, OpCodes } from "./structures/gateway.ts";
-import type { DiscordEvents, GatewayBotData, GatewayIntents, GatewayPayload, Identify } from "./structures/gateway.ts";
+import { DiscordEvents, GatewayBotData, GatewayIntents, GatewayPayload, Identify } from "./structures/gateway.ts";
+import type { User } from "./structures/users.ts";
 import { ActivityType } from "./structures/activities.ts";
 
 function debug_getTime(): string {
@@ -34,6 +35,7 @@ export class Gateway {
     private sessionStartLimit: GatewayBotData["session_start_limit"] | null = null;
     private messageQueue: GatewayPayload[] = [];
     private isReconnecting = false;
+    private botUser: User | null = null;
     private queueableOpcodes: OpCodes[] = [
         OpCodes.IDENTIFY,
         // Queueable codes to whitelist
@@ -71,7 +73,7 @@ export class Gateway {
     }
 
     // deno-lint-ignore no-explicit-any
-    private listeners: { [event: string]: ((...args: any[]) => void)[] } = {};
+    private listeners: { [event: string]: ((...args: any[]) => void)[] } = {}; 
 
     // deno-lint-ignore no-explicit-any
     on(event: DiscordEvents, callback: (...args: any[]) => void) {
@@ -92,6 +94,10 @@ export class Gateway {
         this.flushMessageQueue();
     }
 
+    getBotUser() {
+        return this.botUser;
+    }
+
     private flushMessageQueue() {
         while (this.messageQueue.length > 0) {
             const payload = this.messageQueue.shift();
@@ -105,7 +111,8 @@ export class Gateway {
         const payload: GatewayPayload = JSON.parse(event.data as string);
 
         if (payload.op !== 11) {
-            console.log(debug_getTime(), JSON.stringify(payload), "\n");
+            //console.log(debug_getTime(), JSON.stringify(payload), "\n");
+            console.log(debug_getTime(), payload.t, payload.op, "\n");
         }
         switch (payload.op) {
             case OpCodes.HELLO:
@@ -305,10 +312,15 @@ export class Gateway {
     }
 
     private handleDispatch(payload: GatewayPayload) {
-        if (payload.t === "READY") {
+        if (payload.t === DiscordEvents.Ready) {
             this.resumeGatewayUrl = payload.d.resume_gateway_url;
             this.sessionId = payload.d.session_id;
+            this.botUser = payload.d.user ? { ...payload.d.user } : null;
             this.reconnectCounter = 1;
+        }
+
+        if (payload.t === DiscordEvents.InteractionCreate) {
+            //Embelish interaction
         }
 
         if (payload.s) {

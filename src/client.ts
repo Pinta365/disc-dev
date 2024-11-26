@@ -47,8 +47,11 @@ export class DiscordClient {
                         interaction.data.type === ApplicationCommandType.MESSAGE),
 
                     interactionTarget: interactionTarget,
+                    applicationId: interaction.application_id,
+                    channelId: interaction.channel_id,
+                    guildId: interaction.guild_id,
 
-                    reply: async (response: InteractionCallbackData, ephemeral?: boolean) => {
+                    reply: async (response: InteractionCallbackData | string, ephemeral?: boolean) => {
                         await this.rest.createInteractionResponse(
                             interaction.id,
                             interaction.token,
@@ -58,11 +61,28 @@ export class DiscordClient {
                         );
                     },
 
-                    deferReply: async () => {
+                    editReply: async (message: Partial<Message>) => {
+                        await this.rest.editOriginalInteractionResponse(
+                            interaction.application_id,
+                            interaction.token,
+                            message,
+                        );
+                    },
+
+                    deferReply: async () => { // EPHEMERAL?
                         await this.rest.createInteractionResponse(
                             interaction.id,
                             interaction.token,
                             InteractionCallbackType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+                        );
+                    },
+
+                    followUp: async (response: InteractionCallbackData | string, ephemeral?: boolean) => {
+                        await this.rest.createFollowupMessage(
+                            interaction.application_id,
+                            interaction.token,
+                            response,
+                            ephemeral,
                         );
                     },
 
@@ -82,14 +102,6 @@ export class DiscordClient {
                             InteractionCallbackType.DEFERRED_UPDATE_MESSAGE,
                         );
                     },
-                    /*
-                    //Not implemented
-                    editReply: async () => {
-                    },
-
-                    followUp: async () => {
-                    },
-                    */
                 };
 
                 this.emit(DiscordEvents.InteractionCreate, embelishedInteraction);
@@ -107,6 +119,19 @@ export class DiscordClient {
     private emit<T extends DiscordEvents>(event: T, ...args: any[]) {
         if (this.listeners[event]) {
             this.listeners[event]?.(...args);
+        }
+    }
+
+    botName(withDiscriminator: boolean = false): string {
+        const botUser = this.gateway?.getBotUser();
+        if (botUser) {
+            if (withDiscriminator) {
+                return botUser.username + "#" + botUser.discriminator;
+            } else {
+                return botUser.username;
+            }
+        } else {
+            return "Unknown";
         }
     }
 
