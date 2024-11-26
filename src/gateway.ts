@@ -1,6 +1,8 @@
 // ./src/gateway.ts
 import { closeCodes, OpCodes } from "./structures/gateway.ts";
-import { DiscordEvents, GatewayBotData, GatewayIntents, GatewayPayload, Identify } from "./structures/gateway.ts";
+import { DiscordEvents } from "./structures/gateway.ts";
+import type { DiscordClient } from "./client.ts";
+import type { GatewayBotData, GatewayIntents, GatewayPayload, Identify } from "./structures/gateway.ts";
 import type { User } from "./structures/users.ts";
 import { ActivityType } from "./structures/activities.ts";
 
@@ -36,16 +38,18 @@ export class Gateway {
     private messageQueue: GatewayPayload[] = [];
     private isReconnecting = false;
     private botUser: User | null = null;
+    private discordClient: DiscordClient;
     private queueableOpcodes: OpCodes[] = [
         OpCodes.IDENTIFY,
         // Queueable codes to whitelist
     ];
 
-    constructor(token: string, intents: GatewayIntents[]) {
+    constructor(token: string, intents: GatewayIntents[], discordClient: DiscordClient) {
         this.token = token;
         this.intents = intents;
         this.gatewayVersion = 10; // make configurable
         this.gatewayEncoding = "json"; // make configurable
+        this.discordClient = discordClient;
 
         fetch(`https://discord.com/api/v${this.gatewayVersion}/gateway/bot`, {
             headers: { Authorization: `Bot ${token}` },
@@ -71,9 +75,9 @@ export class Gateway {
                 console.error("Error fetching Gateway URL:", error);
             });
     }
-
+    /*
     // deno-lint-ignore no-explicit-any
-    private listeners: { [event: string]: ((...args: any[]) => void)[] } = {}; 
+    //private listeners: { [event: string]: ((...args: any[]) => void)[] } = {};
 
     // deno-lint-ignore no-explicit-any
     on(event: DiscordEvents, callback: (...args: any[]) => void) {
@@ -87,7 +91,7 @@ export class Gateway {
             this.listeners[event].forEach((listener) => listener(...args));
         }
     }
-
+    */
     private onOpen() {
         this.isReconnecting = false;
         this.identify();
@@ -327,7 +331,8 @@ export class Gateway {
             this.lastSequenceNumber = payload.s;
         }
 
-        this.emit(payload.t as DiscordEvents, payload.d);
+        //this.emit(payload.t as DiscordEvents, payload.d);
+        this.discordClient.handleDispatch(payload);
     }
 
     private send(payload: GatewayPayload) {

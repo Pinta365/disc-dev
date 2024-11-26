@@ -3,25 +3,25 @@ import "@cross/env/load";
 import { getEnv } from "@cross/env";
 
 import { DiscordClient, DiscordEvents, GatewayIntents } from "../mod.ts";
-import type { EmbelishedInteraction } from "../mod.ts";
+import type { EmbelishedInteraction, Message } from "../mod.ts";
 
 const token = getEnv("TOKEN2")!;
 
 const intents = [
     GatewayIntents.GUILDS,
+    GatewayIntents.GUILD_MESSAGES,
 ];
 
 const client = new DiscordClient({ token, intents });
 
-client.on(DiscordEvents.Ready, (payload) => {
-    console.log("test");
-    console.log(`Logged in as ${payload.user.username}!`);
+client.on(DiscordEvents.Ready, () => {
+    console.log(`Logged in as ${client.botName(true)}!`);
 });
 
 client.on(DiscordEvents.InteractionCreate, (interaction: EmbelishedInteraction) => {
     if (!interaction.isChatInputCommand) return;
 
-    console.log(interaction);
+    //console.log(interaction);
     if (interaction.interactionTarget === "greet1") {
         //interaction.reply("Pong!");
 
@@ -32,4 +32,8 @@ client.on(DiscordEvents.InteractionCreate, (interaction: EmbelishedInteraction) 
         //interaction.followUp({ content: "Pong edited!" });
         interaction.followUp("Pong edited!", true);
     }
+});
+
+client.on(DiscordEvents.MessageCreate, (message: Message) => {
+    console.log("Message create:", message.id);
 });
