@@ -12,7 +12,7 @@ const intents = [
     GatewayIntents.GUILD_MESSAGES,
 ];
 
-const client = new DiscordClient({ token, intents });
+const client = new DiscordClient({ token, intents, apiVersion: 10, gatewayCompression: false });
 
 client.on(DiscordEvents.Ready, () => {
     console.log(`Logged in as ${client.botName(true)}!`);

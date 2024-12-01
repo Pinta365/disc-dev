@@ -7,6 +7,8 @@ import { embelishInteraction } from "./embelish.ts";
 interface ClientOptions {
     token: string;
     intents?: GatewayIntents[];
+    apiVersion?: number;
+    gatewayCompression?: boolean;
 }
 
 export class DiscordClient {
@@ -15,9 +17,11 @@ export class DiscordClient {
 
     constructor(options: ClientOptions) {
         const intents = options.intents || [];
-        this.rest = new DiscordRestClient(options.token, 10);
+        const version = options.apiVersion || 10;
+        const compression = options.gatewayCompression || false;
+        this.rest = new DiscordRestClient(options.token, version);
 
-        this.gateway = new Gateway(options.token, intents, this);
+        this.gateway = new Gateway(options.token, intents, version, compression, this);
     }
 
     // deno-lint-ignore no-explicit-any

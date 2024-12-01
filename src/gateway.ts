@@ -44,11 +44,17 @@ export class Gateway {
         // Queueable codes to whitelist
     ];
 
-    constructor(token: string, intents: GatewayIntents[], discordClient: DiscordClient) {
+    constructor(
+        token: string,
+        intents: GatewayIntents[],
+        version: number,
+        _compression: boolean,
+        discordClient: DiscordClient,
+    ) {
         this.token = token;
         this.intents = intents;
-        this.gatewayVersion = 10; // make configurable
-        this.gatewayEncoding = "json"; // make configurable
+        this.gatewayVersion = version;
+        this.gatewayEncoding = "json"; // make configurable at some point
         this.discordClient = discordClient;
 
         fetch(`https://discord.com/api/v${this.gatewayVersion}/gateway/bot`, {
