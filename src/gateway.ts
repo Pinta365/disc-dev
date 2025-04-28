@@ -5,7 +5,9 @@ import type { DiscordClient } from "./client.ts";
 import type { GatewayBotData, GatewayIntents, GatewayPayload, Identify } from "./structures/gateway.ts";
 import type { User } from "./structures/users.ts";
 import { ActivityType } from "./structures/activities.ts";
-import { Logger, LogLevel } from "./utils.ts";
+import { Logger } from "./utils.ts";
+
+const DEFAULT_COMMAND_TTL = 5000;
 
 function debug_getTime(): string {
     const now = new Date();
@@ -36,7 +38,7 @@ export class Gateway {
     private reconnectAttempts = 0;
     private maxReconnectAttempts = 10;
     private sessionStartLimit: GatewayBotData["session_start_limit"] | null = null;
-    private messageQueue: GatewayPayload[] = [];
+    private messageQueue: { payload: GatewayPayload; timestamp: number }[] = [];
     private isReconnecting = false;
     private botUser: User | null = null;
     private discordClient: DiscordClient;
@@ -110,10 +112,13 @@ export class Gateway {
     }
 
     private flushMessageQueue() {
+        const now = Date.now();
         while (this.messageQueue.length > 0) {
-            const payload = this.messageQueue.shift();
-            if (payload) {
+            const { payload, timestamp } = this.messageQueue.shift()!;
+            if (now - timestamp < DEFAULT_COMMAND_TTL) {
                 this.send(payload);
+            } else {
+                Logger.warn("Dropped expired command from queue (TTL exceeded):", payload);
             }
         }
     }
@@ -351,7 +356,8 @@ export class Gateway {
         }
         if (this.isReconnecting || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
             if (this.queueableOpcodes.includes(payload.op)) {
-                this.messageQueue.push(payload);
+                // Store payload with timestamp
+                this.messageQueue.push({ payload, timestamp: Date.now() });
                 Logger.debug("Gateway connection is not open. Message queued.");
             } else {
                 Logger.debug("Opcode not whitelisted for queuing:", payload.op);
