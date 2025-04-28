@@ -5,6 +5,7 @@ import type { DiscordClient } from "./client.ts";
 import type { GatewayBotData, GatewayIntents, GatewayPayload, Identify } from "./structures/gateway.ts";
 import type { User } from "./structures/users.ts";
 import { ActivityType } from "./structures/activities.ts";
+import { Logger, LogLevel } from "./utils.ts";
 
 function debug_getTime(): string {
     const now = new Date();
@@ -78,7 +79,7 @@ export class Gateway {
                 this.socket.onerror = (event) => this.onError(event);
             })
             .catch((error) => {
-                console.error("Error fetching Gateway URL:", error);
+                Logger.error("Error fetching Gateway URL:", error);
             });
     }
     /*
@@ -121,8 +122,7 @@ export class Gateway {
         const payload: GatewayPayload = JSON.parse(event.data as string);
 
         if (payload.op !== 11) {
-            //console.log(debug_getTime(), JSON.stringify(payload), "\n");
-            console.log(debug_getTime(), payload.t, payload.op, "\n");
+            Logger.debug(debug_getTime(), payload.t, payload.op);
         }
         switch (payload.op) {
             case OpCodes.HELLO:
@@ -141,7 +141,7 @@ export class Gateway {
                 //Don't do anything for now.
                 break;
             default:
-                console.log(debug_getTime(), payload, "\n");
+                Logger.debug(debug_getTime(), payload);
         }
     }
 
@@ -209,7 +209,7 @@ export class Gateway {
     }
 
     private onClose(event: CloseEvent) {
-        console.error(
+        Logger.error(
             debug_getTime(),
             "WebSocket closed. Code:",
             event.code,
@@ -217,7 +217,6 @@ export class Gateway {
             event.reason,
             "wasClean:",
             event.wasClean,
-            "\n",
         );
 
         const resumeTime = 1000 * this.reconnectCounter;
@@ -226,7 +225,7 @@ export class Gateway {
             if (this.canResume(event.code)) {
                 this.resume();
             } else {
-                console.error(debug_getTime(), "Cannot resume, starting a fresh connection...", "\n");
+                Logger.error(debug_getTime(), "Cannot resume, starting a fresh connection...");
                 this.reconnect();
             }
 
@@ -240,10 +239,9 @@ export class Gateway {
 
     private resume() {
         if (!this.resumeGatewayUrl || !this.sessionId || this.lastSequenceNumber === null) {
-            console.warn(
+            Logger.warn(
                 debug_getTime(),
                 "Cannot resume without resume gateway URL, session ID, or sequence number. Reconnecting...",
-                "\n",
             );
             this.reconnect();
             return;
@@ -262,7 +260,7 @@ export class Gateway {
 
         if (this.socket) {
             this.socket.onclose = () => {
-                console.log(debug_getTime(), "Closed old connection for resume.", "\n");
+                Logger.info(debug_getTime(), "Closed old connection for resume.");
                 this.socket = new WebSocket(this.resumeGatewayUrl!);
                 this.socket.onopen = () => this.send(resumePayload);
                 this.socket.onmessage = (event) => this.onMessage(event);
@@ -271,7 +269,7 @@ export class Gateway {
             };
             this.close(4900, "Resume initialized.");
         } else {
-            console.warn("Cannot resume: WebSocket is not initialized.");
+            Logger.warn("Cannot resume: WebSocket is not initialized.");
         }
     }
 
@@ -279,7 +277,7 @@ export class Gateway {
         this.isReconnecting = true;
         if (this.sessionStartLimit && this.sessionStartLimit.remaining === 0) {
             const resetTime = this.sessionStartLimit.reset_after;
-            console.warn(`Session start limit reached. Retrying in ${resetTime / 1000} seconds...`);
+            Logger.warn(`Session start limit reached. Retrying in ${resetTime / 1000} seconds...`);
             setTimeout(() => this.reconnect(), resetTime);
             return;
         }
@@ -288,7 +286,7 @@ export class Gateway {
 
         const backoffTime = Math.min(2 ** this.reconnectAttempts + (Math.random() * 1000), 30000);
         setTimeout(() => {
-            console.log(`Reconnecting in ${backoffTime / 1000} seconds...`);
+            Logger.info(`Reconnecting in ${backoffTime / 1000} seconds...`);
             this.socket = new WebSocket(
                 `${this.gatewayURL}?/v=${this.gatewayVersion}&encoding=${this.gatewayEncoding}`,
             );
@@ -300,7 +298,7 @@ export class Gateway {
 
         this.reconnectAttempts++;
         if (this.reconnectAttempts > this.maxReconnectAttempts) {
-            console.error("Max reconnect attempts reached. Giving up.");
+            Logger.error("Max reconnect attempts reached. Giving up.");
         }
 
         if (this.sessionStartLimit) {
@@ -318,7 +316,7 @@ export class Gateway {
     }
 
     private onError(event: Event | ErrorEvent) {
-        console.error(debug_getTime(), "WebSocket error:", event, "\n");
+        Logger.error(debug_getTime(), "WebSocket error:", event);
     }
 
     private handleDispatch(payload: GatewayPayload) {
@@ -343,20 +341,20 @@ export class Gateway {
 
     private send(payload: GatewayPayload) {
         if (this.isRateLimited()) {
-            console.warn(debug_getTime(), "Rate limited. Delaying sending.", "\n");
+            Logger.warn(debug_getTime(), "Rate limited. Delaying sending.");
             setTimeout(() => this.send(payload), this.getRateLimitResetTime());
             return;
         }
 
         if (payload.op !== 1) {
-            console.warn(debug_getTime(), JSON.stringify(payload), "\n");
+            Logger.debug(debug_getTime(), JSON.stringify(payload));
         }
         if (this.isReconnecting || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
             if (this.queueableOpcodes.includes(payload.op)) {
                 this.messageQueue.push(payload);
-                console.debug("Gateway connection is not open. Message queued.");
+                Logger.debug("Gateway connection is not open. Message queued.");
             } else {
-                console.debug("Opcode not whitelisted for queuing:", payload.op);
+                Logger.debug("Opcode not whitelisted for queuing:", payload.op);
             }
         } else {
             this.socket.send(JSON.stringify(payload));

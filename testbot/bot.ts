@@ -4,6 +4,7 @@ import { getEnv } from "@cross/env";
 
 import { DiscordClient, DiscordEvents, GatewayIntents } from "../mod.ts";
 import type { EmbelishedInteraction, Message } from "../mod.ts";
+import { LogLevel } from "../src/utils.ts";
 
 const token = getEnv("TOKEN2")!;
 
@@ -12,7 +13,13 @@ const intents = [
     GatewayIntents.GUILD_MESSAGES,
 ];
 
-const client = new DiscordClient({ token, intents, apiVersion: 10, gatewayCompression: false });
+const client = new DiscordClient({
+    token,
+    intents,
+    apiVersion: 10,
+    gatewayCompression: false,
+    logLevel: LogLevel.DEBUG,
+});
 
 client.on(DiscordEvents.Ready, () => {
     console.log(`Logged in as ${client.botName(true)}!`);

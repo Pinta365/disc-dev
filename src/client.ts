@@ -3,12 +3,14 @@ import { Gateway } from "./gateway.ts";
 import { DiscordEvents, type GatewayIntents, type GatewayPayload } from "./structures/gateway.ts";
 import { DiscordRestClient } from "./rest_client.ts";
 import { embelishInteraction } from "./embelish.ts";
+import { Logger, type LogLevel } from "./utils.ts";
 
 interface ClientOptions {
     token: string;
     intents?: GatewayIntents[];
     apiVersion?: number;
     gatewayCompression?: boolean;
+    logLevel?: LogLevel;
 }
 
 export class DiscordClient {
@@ -16,6 +18,9 @@ export class DiscordClient {
     private rest: DiscordRestClient;
 
     constructor(options: ClientOptions) {
+        if (options.logLevel !== undefined) {
+            Logger.setLevel(options.logLevel);
+        }
         const intents = options.intents || [];
         const version = options.apiVersion || 10;
         const compression = options.gatewayCompression || false;
@@ -39,7 +44,7 @@ export class DiscordClient {
     }
 
     handleDispatch(payload: GatewayPayload) {
-        console.log("dispatch", payload.t);
+        Logger.debug("dispatch", payload.t);
 
         //Embelish some payloads..
         if (payload.t === DiscordEvents.InteractionCreate) {
