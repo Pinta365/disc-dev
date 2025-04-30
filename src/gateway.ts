@@ -126,9 +126,10 @@ export class Gateway {
     private onMessage(event: MessageEvent) {
         const payload: GatewayPayload = JSON.parse(event.data as string);
 
-        if (payload.op !== 11) {
-            Logger.debug(debug_getTime(), payload.t, payload.op);
-        }
+        /*if (payload.op !== 11) {
+            Logger.debug(payload.t, payload.op);
+        }*/
+        Logger.debug(payload.t, payload.op);
         switch (payload.op) {
             case OpCodes.HELLO:
                 this.startHeartbeat(payload.d.heartbeat_interval);
@@ -146,7 +147,7 @@ export class Gateway {
                 //Don't do anything for now.
                 break;
             default:
-                Logger.debug(debug_getTime(), payload);
+                Logger.debug(payload);
         }
     }
 
@@ -230,7 +231,7 @@ export class Gateway {
             if (this.canResume(event.code)) {
                 this.resume();
             } else {
-                Logger.error(debug_getTime(), "Cannot resume, starting a fresh connection...");
+                Logger.error("Cannot resume, starting a fresh connection...");
                 this.reconnect();
             }
 
@@ -265,7 +266,7 @@ export class Gateway {
 
         if (this.socket) {
             this.socket.onclose = () => {
-                Logger.info(debug_getTime(), "Closed old connection for resume.");
+                Logger.info("Closed old connection for resume.");
                 this.socket = new WebSocket(this.resumeGatewayUrl!);
                 this.socket.onopen = () => this.send(resumePayload);
                 this.socket.onmessage = (event) => this.onMessage(event);
@@ -321,7 +322,7 @@ export class Gateway {
     }
 
     private onError(event: Event | ErrorEvent) {
-        Logger.error(debug_getTime(), "WebSocket error:", event);
+        Logger.error("WebSocket error:", event);
     }
 
     private handleDispatch(payload: GatewayPayload) {
@@ -346,13 +347,13 @@ export class Gateway {
 
     private send(payload: GatewayPayload) {
         if (this.isRateLimited()) {
-            Logger.warn(debug_getTime(), "Rate limited. Delaying sending.");
+            Logger.warn("Rate limited. Delaying sending.");
             setTimeout(() => this.send(payload), this.getRateLimitResetTime());
             return;
         }
 
         if (payload.op !== 1) {
-            Logger.debug(debug_getTime(), JSON.stringify(payload));
+            Logger.debug(JSON.stringify(payload));
         }
         if (this.isReconnecting || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
             if (this.queueableOpcodes.includes(payload.op)) {

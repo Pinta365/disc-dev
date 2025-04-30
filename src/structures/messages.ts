@@ -65,7 +65,15 @@ export enum ComponentType {
     ROLE_SELECT = 6,
     MENTIONABLE_SELECT = 7,
     CHANNEL_SELECT = 8,
+    SECTION = 9,
+    TEXT_DISPLAY = 10,
+    THUMBNAIL = 11,
+    MEDIA_GALLERY = 12,
+    FILE = 13,
+    SEPARATOR = 14,
+    CONTAINER = 17,
 }
+
 
 export interface MessageActivity {
     type: MessageActivityType;
@@ -140,7 +148,9 @@ export enum MessageFlags {
     FAILED_TO_MENTION_SOME_ROLES_IN_THREAD = 1 << 8,
     SUPPRESS_NOTIFICATIONS = 1 << 12,
     IS_VOICE_MESSAGE = 1 << 13,
+    IS_COMPONENTS_V2 = 1 << 15,
 }
+
 
 /*
 WATCH TOGETHER
